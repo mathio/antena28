@@ -1,34 +1,25 @@
-const https = require("https");
 const fetch = require("isomorphic-unfetch");
 const btoa = require("btoa");
 
-const fixAccents = (value) => {
-	const replace = {
-		"Ã¡": "á",
-		"Å ": "Š",
-		"&amp;": "&",
-	};
-	let newValue = value;
-	for (let i = 0; i < Object.keys(replace).length; i += 1) {
-		const key = Object.keys(replace)[i];
-		newValue = newValue.replace(key, replace[key]);
+const sleep = (ms) => new Promise(res => setTimeout(res, ms))
+
+const getTracks = async (url) => {
+	let data = []
+
+	try {
+		const response = await fetch(url);
+		const result = await response.json();
+		data = result && result.data || []
+	} catch(e) {
+		console.error('Failed while fetching tracks:'. e)
 	}
-	return newValue;
-};
 
-const getAntenaTracks = async () => {
-
-	const response = await fetch("https://www.antenarock.sk/playlist-hranych-skladieb");
-	const data = await response.text();
-
-	const matches = data.match(/\<h3 class="title"\>(.*)-(.*)\<\/h3\>/g).map(item => {
-		const [_wholeMatch, artist, song] = item.match(/\<h3 class="title"\>\s*(.*)\s*-\s*(.*)\s*\<\/h3\>/);
-		return fixAccents(`${artist} - ${song}`);
-	});
-
-	// console.log(matches);
-
-	return matches.reverse();
+	return data.map(track => {
+		const { name, title } = track || {}
+		if (name && title) {
+			return `${name} - ${title}`
+		}
+	}).filter(v => !!v);
 }
 
 const register = async () => {
@@ -36,25 +27,21 @@ const register = async () => {
 	const redirectUrl = process.env.SPOTIFY_REDIRECT_URL;
 	const scopes = "playlist-read-collaborative playlist-modify-private playlist-modify-public playlist-read-private";
 
-	console.log(`https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}` + 
+	console.log(`https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}` +
 				`&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUrl)}`);
 };
 
-// 1. call register() to get login link and open it in browser
-// 2. authorize the app for your spotify account in browser
-// 3. you wil be redirected to non-existing URL with "code" parameter in query
-// 4. paste the "code" value below to "authCode" variable
-const authCode = "";
-
 const auth = async (code, useAuthCode = false) => {
-	const auth = useAuthCode ? 
+	const auth = useAuthCode ?
 		`grant_type=authorization_code&code=${encodeURIComponent(code)}` :
 		`grant_type=refresh_token&refresh_token=${encodeURIComponent(code)}`;
 	const clientId = process.env.SPOTIFY_CLIENT_ID;
 	const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 	const redirectUrl = process.env.SPOTIFY_REDIRECT_URL;
 
-	// console.log(auth);
+	if (useAuthCode) {
+		console.log(auth);
+	}
 
 	const response = await fetch("https://accounts.spotify.com/api/token", {
 		method: "POST",
@@ -66,16 +53,16 @@ const auth = async (code, useAuthCode = false) => {
 	});
 	const data = await response.json();
 
-	// console.log(data);
-
-	if (data.refresh_token) {
+	if (useAuthCode) {
+		console.log(data);
+	} else if (data.refresh_token) {
 		console.log("WARNING! New refresh_token supplied:", data.refresh_token);
 	}
 
 	return data.access_token;
 };
 
-const addToPlaylist = async (accessToken, playlistId, uris) => {
+const addToPlaylist = async (accessToken, playlistId, uris, name) => {
 
 	const response = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?uris=${uris.join(",")}`, {
 		method: "POST",
@@ -83,10 +70,11 @@ const addToPlaylist = async (accessToken, playlistId, uris) => {
 			"Authorization": `Bearer ${accessToken}`
 		}
 	});
+
 	const data = await response.json();
 
 	if (data.snapshot_id) {
-		console.log(`${uris.length} succesfully added to playlist.`)
+		console.log(`${name}: ${uris.length} succesfully added to playlist.`)
 	} else {
 		console.error("Error adding tracks:", data);
 	}
@@ -123,7 +111,7 @@ const findTrack = async (accessToken, name) => {
 	const data = await response.json();
 
 	const uri = data.tracks && data.tracks.items.length > 0 ? data.tracks.items[0].uri : null;
-	
+
 	// console.log({name, uri});
 
 	if (!uri) {
@@ -133,21 +121,72 @@ const findTrack = async (accessToken, name) => {
 	return uri;
 };
 
-const processAntena = async () => {
-	const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
-	const playlistId = "1tQYooYArM41TiFO5cHbXo";	// spotify id of "Antena" playlist
-	const accessToken = await auth(refreshToken);
-
-	const tracks = await getAntenaTracks();
+const processRadio886Playlists = async (name, playlistId, accessToken) => {
+	const url = `https://meta.radio886.at/${name}`
+	const tracks = await getTracks(url);
 	const trackUris = await Promise.all(tracks.map(track => findTrack(accessToken, track)));
 	const existingTrackUris = await getPlaylistTracks(accessToken, playlistId);
 	const newTrackUris = trackUris.filter(uri => !!uri && existingTrackUris.indexOf(uri) === -1);
 	if (newTrackUris.length > 0) {
-		await addToPlaylist(accessToken, playlistId, newTrackUris);
+		await addToPlaylist(accessToken, playlistId, newTrackUris, name);
+	}
+	return newTrackUris
+}
+
+const processNewTracks = async () => {
+	const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+	const accessToken = await auth(refreshToken);
+
+	const playlists = [
+		{
+			name: 'HardRock',
+			spotifyPlaylistId: '7Ec0rNNvVzASYJ6XaQmc4w',
+		},
+		{
+			name: 'NewRock',
+			spotifyPlaylistId: '2VSTBfKYYUbZL3QORXYX7D',
+		},
+		{
+			name: 'ClassicRock',
+			spotifyPlaylistId: '77N4roRdtoPPagHdBxjUwd',
+		},
+		{
+			name: '886',
+			spotifyPlaylistId: '1xv0WP1QQKYTeUN3LJ9UEy',
+		},
+	]
+
+	const spotifyPlaylistIdAllSongs = '2ADUOTr9QaI0sjBSXpyCTF'
+	let trackUris = []
+
+	for(let i = 0; i < playlists.length; i += 1) {
+		const { name, spotifyPlaylistId } = playlists[i]
+		const addedTrackUris = await processRadio886Playlists(name, spotifyPlaylistId, accessToken)
+		trackUris = [ ...trackUris, ...addedTrackUris ]
+		await sleep(1000 + Math.random() * 4000)
+	}
+
+	const existingTrackUris = await getPlaylistTracks(accessToken, spotifyPlaylistIdAllSongs);
+	const newTrackUris = trackUris.filter(uri => !!uri && existingTrackUris.indexOf(uri) === -1);
+	if (newTrackUris.length > 0) {
+		await addToPlaylist(accessToken, spotifyPlaylistIdAllSongs, newTrackUris, 'All');
 	}
 };
 
+
+// SETUP:
+// 1. create app in https://developer.spotify.com/dashboard/
+// 2. populate env vars "SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET" and "SPOTIFY_REDIRECT_URL"
+// 3. call register() to get login link and open it in browser
+// 4. authorize the app for your spotify account in browser
+// 5. you wil be redirected to non-existing URL with "code" parameter in query
+// 6. paste the "code" value below to "authCode" variable
+// 7. uncomment console.logs in "auth()" below and run "auth(authCode, true)"
+// 8. put the value from "refresh_token" to env var "SPOTIFY_REFRESH_TOKEN"
 // register();
-// auth(authCode);
-processAntena();
+// const authCode = "AQDbKFXQIGb3iaroiOMPL0WP1wrrNpLhhEkOuTu7FeGQLbM6X4Rhj98snMFjCIBr3_paZrBcm7I_ghU47ec76bPgWYteA2F5-XejzjUMpwg7BjPi2J5h2c-BRBeVNTSV7_SMQTNFirhx0iPNZTRIBgXTrQEYghElBABaJF4Rq4gEcoLFoKuB7Vf51dNVLmZoNncf3CbVqv_DchPGrWVVdbPgEocc9UB2PLqOfxDpwU5ffV9GmhChdTLRNBlWIWXFih5CbHc__Dt-VeEzsc7jwbOEHx9YCmbSwsvfB928XpIRxn5IxPmcYZvuZoac";
+// auth(authCode, true);
+
+// WORK WORK:
+processNewTracks();
 

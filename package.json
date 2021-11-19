@@ -2,8 +2,11 @@
   "name": "antena",
   "version": "1.0.0",
   "main": "index.js",
-  "author": "Matej Lednicky <matej@thinkcreatix.com>",
+  "author": "Matej Lednicky <matej@lednicky.name>",
   "license": "MIT",
+  "scripts": {
+    "start": "node index"
+  },
   "dependencies": {
     "btoa": "^1.2.1",
     "isomorphic-unfetch": "^3.0.0"
