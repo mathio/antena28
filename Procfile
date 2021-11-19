@@ -1,2 +1,2 @@
-antena: node index.js
-
+antena: yarn start
+web: yarn web

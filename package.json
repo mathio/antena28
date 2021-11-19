@@ -5,10 +5,12 @@
   "author": "Matej Lednicky <matej@lednicky.name>",
   "license": "MIT",
   "scripts": {
-    "start": "node index"
+    "start": "node index",
+    "web": "yarn http-server ./public -p $PORT "
   },
   "dependencies": {
     "btoa": "^1.2.1",
+    "http-server": "^14.0.0",
     "isomorphic-unfetch": "^3.0.0"
   }
 }
