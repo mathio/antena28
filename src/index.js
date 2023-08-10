@@ -51,6 +51,18 @@ const processNewTracks = async () => {
       spotifyPlaylistId: "1xv0WP1QQKYTeUN3LJ9UEy",
       extractor: extractors.map886,
     },
+    {
+      url: "https://radia.cz/radio-rock-radio-playlist",
+      spotifyPlaylistId: "30swlxgIhoxh0LwvCkQAX0",
+      extractor: extractors.mapRadiaCz,
+      asJson: false,
+    },
+    {
+      url: "https://radia.cz/radio-rock-radio-hard-and-heavy-playlist",
+      spotifyPlaylistId: "03yOcLoXoV2iGywFEARoqQ",
+      extractor: extractors.mapRadiaCz,
+      asJson: false,
+    },
   ];
 
   for (let i = 0; i < playlists.length; i += 1) {

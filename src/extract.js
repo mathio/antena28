@@ -20,6 +20,17 @@ const extractors = {
       }
     });
   },
+  mapRadiaCz: (result) => {
+    const $ = cheerio.load(result);
+    return $(".interpret-song")
+      .map((i, item) => {
+        const artist = $(".interpret", item).text();
+        const title = $(".song", item).text();
+        return `${artist} - ${title}`;
+      })
+      .toArray()
+      .reverse();
+  },
 };
 
 const extractTracks = async (url, extractor, asJson) => {
