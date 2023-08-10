@@ -8,13 +8,34 @@ const client = new MongoClient(process.env.MONGODB_URL, {
   },
 });
 
+const isLastAccessDateStale = (last) => {
+  const now = Date.now();
+  const validMs = 1000 * 60 * 60 * 12; // 12 hours
+  return !last || now - validMs > last.getTime();
+};
+
 const getCachedTrack = async (key) => {
   const one = await client.db("cache").collection("tracks").findOne({ key });
-  return one?.uri || null;
+
+  if (!one) {
+    return null;
+  }
+
+  if (isLastAccessDateStale(one.last)) {
+    await client
+      .db("cache")
+      .collection("tracks")
+      .updateOne({ key }, { $set: { last: new Date() } });
+  }
+
+  return one.uri;
 };
 
 const setCachedTrack = async (key, uri) => {
-  await client.db("cache").collection("tracks").insertOne({ key, uri });
+  await client
+    .db("cache")
+    .collection("tracks")
+    .insertOne({ key, uri, last: new Date() });
 };
 
 const getCachedPlaylist = async (key) => {
@@ -33,9 +54,14 @@ const setCachedPlaylist = async (key, uris, next) => {
     .insertOne({ key, uris, next });
 };
 
+const disconnectMongoCache = async () => {
+  await client.close();
+};
+
 module.exports = {
   getCachedTrack,
   setCachedTrack,
   getCachedPlaylist,
   setCachedPlaylist,
+  disconnectMongoCache,
 };

@@ -4,6 +4,7 @@ const {
   getPlaylistTracks,
   addToPlaylist,
 } = require("./spotify");
+const { disconnectMongoCache } = require("./cache");
 // const { register, auth } = require("./auth");
 
 const processRadioPlaylists = async ({
@@ -69,6 +70,7 @@ const processNewTracks = async () => {
     await processRadioPlaylists(playlists[i]);
   }
 
+  await disconnectMongoCache();
   process.exit(0);
 };
 
