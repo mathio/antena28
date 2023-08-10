@@ -1,15 +1,16 @@
 {
   "name": "antena",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "author": "Matej Lednicky <matej@lednicky.name>",
   "license": "MIT",
   "scripts": {
-    "start": "node index",
+    "start": "node src/index",
     "web": "yarn http-server ./public -p $PORT "
   },
   "dependencies": {
     "btoa": "^1.2.1",
+    "cheerio": "^1.0.0-rc.12",
     "http-server": "^14.0.0",
     "isomorphic-unfetch": "^3.0.0",
     "mongodb": "^5.7.0"
