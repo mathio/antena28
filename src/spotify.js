@@ -52,39 +52,42 @@ const addToPlaylist = async (playlistId, uris, playlistUrl) => {
 };
 
 const getPlaylistTracks = async (playlistId) => {
-  let playlistUrl = `/playlists/${encodeURIComponent(playlistId)}/tracks`;
+  let playlistPath = `${encodeURIComponent(playlistId)}/tracks`;
   let trackUris = [];
 
-  while (playlistUrl) {
-    const cached = await getCachedPlaylist(playlistUrl);
+  while (playlistPath) {
+    const cached = await getCachedPlaylist(playlistPath);
     let uris = cached?.uris;
     let nextUrl = cached?.next;
 
     if (!uris) {
-      const data = await fetchSpotify("GET", playlistUrl);
+      const data = await fetchSpotify("GET", `/playlists/${playlistPath}`);
       uris = (data.items && data.items.map((item) => item.track.uri)) || [];
-      nextUrl = data.next?.replace("https://api.spotify.com/v1", "") || null;
+      nextUrl =
+        data.next?.replace("https://api.spotify.com/v1/playlists/", "") || null;
     }
 
     trackUris = [...trackUris, ...uris];
 
     // there is next page = this page is already full = will not be modified = can be cached
     if (nextUrl) {
-      await setCachedPlaylist(playlistUrl, uris, nextUrl);
+      await setCachedPlaylist(playlistPath, uris, nextUrl);
     }
-    playlistUrl = nextUrl;
+    playlistPath = nextUrl;
   }
 
   return trackUris;
 };
 
 const findTrack = async (name) => {
-  const query = encodeURIComponent(name);
-
-  let uri = await getCachedTrack(query);
+  const upperCaseName = name.toUpperCase();
+  let uri = await getCachedTrack(upperCaseName);
 
   if (!uri) {
-    const data = await fetchSpotify("GET", `/search?type=track&q=${query}`);
+    const data = await fetchSpotify(
+      "GET",
+      `/search?type=track&q=${encodeURIComponent(upperCaseName)}`,
+    );
     uri =
       data.tracks && data.tracks.items.length > 0
         ? data.tracks.items[0].uri
@@ -95,7 +98,7 @@ const findTrack = async (name) => {
     console.error("Unable to find track:", name);
   }
 
-  await setCachedTrack(query, uri);
+  await setCachedTrack(upperCaseName, uri);
 
   return uri;
 };
