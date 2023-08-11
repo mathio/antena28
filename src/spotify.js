@@ -69,8 +69,8 @@ const getPlaylistTracks = async (playlistId) => {
 
     trackUris = [...trackUris, ...uris];
 
-    // there is next page = this page is already full = will not be modified = can be cached
-    if (nextUrl) {
+    // result was not cached && there is next page = this page is already full = will not be modified = can be cached
+    if (!cached && nextUrl) {
       await setCachedPlaylist(playlistPath, uris, nextUrl);
     }
     playlistPath = nextUrl;
