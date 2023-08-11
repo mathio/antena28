@@ -14,6 +14,9 @@ const processRadioPlaylists = async ({
   asJson = true,
 }) => {
   const tracks = await extractTracks(url, extractor, asJson);
+  if (!tracks || tracks.length === 0) {
+    return [];
+  }
   const trackUris = await findAllTracks(tracks);
   const existingTrackUris = await getPlaylistTracks(spotifyPlaylistId);
   const newTrackUris = trackUris.filter(

@@ -35,8 +35,17 @@ const extractors = {
 
 const extractTracks = async (url, extractor, asJson) => {
   let result = {};
+
+  const timeout = 10_000;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(id);
     if (asJson) {
       result = await response.json();
     } else {
