@@ -13,7 +13,8 @@
     "cheerio": "^1.0.0-rc.12",
     "http-server": "^14.0.0",
     "isomorphic-unfetch": "^3.0.0",
-    "mongodb": "^5.7.0"
+    "mongodb": "^5.7.0",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "prettier": "^3.0.1"
