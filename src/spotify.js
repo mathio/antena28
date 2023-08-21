@@ -92,13 +92,12 @@ const findTrack = async (name) => {
       data.tracks && data.tracks.items.length > 0
         ? data.tracks.items[0].uri
         : null;
+    await setCachedTrack(upperCaseName, uri);
   }
 
   if (!uri) {
     console.error("Unable to find track:", name);
   }
-
-  await setCachedTrack(upperCaseName, uri);
 
   return uri;
 };
