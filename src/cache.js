@@ -47,11 +47,24 @@ const getCachedPlaylist = async (key) => {
   return { uris, next };
 };
 
+const getCachedPlaylistLastRecordKey = async (playlistId) => {
+  const one = await client
+    .db("cache")
+    .collection("playlists")
+    .findOne({ key: { $regex: new RegExp(`^${playlistId}/`) }, next: null });
+
+  return one?.key || null;
+};
+
 const setCachedPlaylist = async (key, uris, next) => {
   await client
     .db("cache")
     .collection("playlists")
     .insertOne({ key, uris, next });
+};
+
+const deleteCachedPlaylist = async (key) => {
+  await client.db("cache").collection("playlists").deleteOne({ key });
 };
 
 const disconnectMongoCache = async () => {
@@ -62,6 +75,8 @@ module.exports = {
   getCachedTrack,
   setCachedTrack,
   getCachedPlaylist,
+  getCachedPlaylistLastRecordKey,
   setCachedPlaylist,
+  deleteCachedPlaylist,
   disconnectMongoCache,
 };

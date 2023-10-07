@@ -6,6 +6,8 @@ const {
   setCachedPlaylist,
   getCachedTrack,
   setCachedTrack,
+  getCachedPlaylistLastRecordKey,
+  deleteCachedPlaylist,
 } = require("./cache");
 let spotifyGlobalAccessToken = null;
 
@@ -34,7 +36,7 @@ const fetchSpotify = async (method, path) => {
   return await response.json();
 };
 
-const addToPlaylist = async (playlistId, uris, playlistUrl) => {
+const addToPlaylist = async (playlistId, uris, originalUrl) => {
   const data = await fetchSpotify(
     "POST",
     `/playlists/${encodeURIComponent(playlistId)}/tracks?uris=${uris.join(
@@ -44,11 +46,31 @@ const addToPlaylist = async (playlistId, uris, playlistUrl) => {
 
   if (data.snapshot_id) {
     console.log(
-      `${playlistUrl}: ${uris.length} succesfully added to playlist.`,
+      `${originalUrl}: ${uris.length} succesfully added to playlist.`,
     );
+
+    await updatePlaylistCache(playlistId, originalUrl);
   } else {
     console.error("Error adding tracks:", data);
   }
+};
+
+const updatePlaylistCache = async (playlistId, originalUrl) => {
+  const playlistPath = await getCachedPlaylistLastRecordKey(playlistId);
+  if (playlistPath) {
+    console.log(`${originalUrl}: Refresh cache key ${playlistPath}`);
+    await deleteCachedPlaylist(playlistPath);
+    const { uris, nextUrl } = await fetchSpotifyPlaylistPath(playlistPath);
+    await setCachedPlaylist(playlistPath, uris, nextUrl);
+  }
+};
+
+const fetchSpotifyPlaylistPath = async (playlistPath) => {
+  const data = await fetchSpotify("GET", `/playlists/${playlistPath}`);
+  const uris = (data.items && data.items.map((item) => item.track.uri)) || [];
+  const nextUrl =
+    data.next?.replace("https://api.spotify.com/v1/playlists/", "") || null;
+  return { uris, nextUrl };
 };
 
 const getPlaylistTracks = async (playlistId) => {
@@ -61,16 +83,14 @@ const getPlaylistTracks = async (playlistId) => {
     let nextUrl = cached?.next;
 
     if (!uris) {
-      const data = await fetchSpotify("GET", `/playlists/${playlistPath}`);
-      uris = (data.items && data.items.map((item) => item.track.uri)) || [];
-      nextUrl =
-        data.next?.replace("https://api.spotify.com/v1/playlists/", "") || null;
+      const newData = await fetchSpotifyPlaylistPath(playlistPath);
+      uris = newData.uris;
+      nextUrl = newData.next;
     }
 
     trackUris = [...trackUris, ...uris];
 
-    // result was not cached && there is next page = this page is already full = will not be modified = can be cached
-    if (!cached && nextUrl) {
+    if (!cached) {
       await setCachedPlaylist(playlistPath, uris, nextUrl);
     }
     playlistPath = nextUrl;
@@ -114,4 +134,5 @@ module.exports = {
   addToPlaylist,
   getPlaylistTracks,
   findAllTracks,
+  updatePlaylistCache,
 };
