@@ -13,6 +13,7 @@ const processRadioPlaylists = async ({
   extractor,
   asJson = true,
 }) => {
+  console.log(`RADIO: ${url}`);
   const tracks = await extractTracks(url, extractor, asJson);
   if (!tracks || tracks.length === 0) {
     return [];

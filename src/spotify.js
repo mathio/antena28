@@ -26,9 +26,15 @@ const fetchSpotify = async (method, path) => {
     },
   });
   if (!response.ok) {
-    throw new Error(
+    console.error(
       `Failed while fetching ${path} (${response.status}): ${response.statusText}`,
     );
+    try {
+      const errorBody = await response.json();
+      console.error("Error details:", errorBody);
+    } catch (e) {}
+
+    throw new Error("Spotify fetch failed");
   }
 
   await sleep(500, 1000);
